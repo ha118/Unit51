@@ -5,27 +5,39 @@
 #include "PatrolEnemy.h"
 #include "AIPatrolPoint.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "Kismet/GameplayStatics.h"
+#include "Runtime/AIModule/Classes/Perception/AISenseConfig_Sight.h"
 
-void APatrolEnemyController::OnPossess(APawn* EnemyPawn)
+void APatrolEnemyController::OnPerception(AActor* EnemyPawn, FAIStimulus Stimulus)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Starting possess"));
-	APatrolEnemy* PatrolEnemy = Cast<APatrolEnemy>(EnemyPawn);
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("On perception called"));
+
+	if (BlackboardComp) {
+		FString msg = FString::Printf(TEXT("Enemy Pawn is %s"), *GetNameSafe(EnemyPawn));
+		BlackboardComp->SetValueAsObject(PlayerKey, Stimulus.WasSuccessfullySensed() ? EnemyPawn : nullptr);
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, msg);
+	}
+}
+
+void APatrolEnemyController::OnPossess(APawn* PossessedPawn)
+{
+	Super::OnPossess(PossessedPawn);
+	APatrolEnemy* PatrolEnemy = Cast<APatrolEnemy>(PossessedPawn);
+
+	// Call OnPerception on perception updated
+	AIPerceptionComponent->OnTargetPerceptionUpdated.AddDynamic(this, &APatrolEnemyController::OnPerception);
+
 	if (PatrolEnemy) {
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Possessed"));
 		if (PatrolEnemy->BehaviorTree->BlackboardAsset) {
 			BlackboardComp->InitializeBlackboard(*(PatrolEnemy->BehaviorTree->BlackboardAsset));
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Blackboard init"));
 		}
+		// Getting all patrol points in world
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAIPatrolPoint::StaticClass(), PatrolPoints);
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("starting tree"));
+
 		BehaviorComp->StartTree(*PatrolEnemy->BehaviorTree);
 	}
-	else {
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Unable to possess"));
-	}
+
 }
 
 APatrolEnemyController::APatrolEnemyController()
@@ -37,11 +49,17 @@ APatrolEnemyController::APatrolEnemyController()
 	PlayerKey = "Target";
 	TargetLocation = "LocationToGo";
 	CurrentPatrolPoint = 0;
-}
 
-void APatrolEnemyController::setPlayerCaught(APawn* EnemyPawn)
-{
-	if (BlackboardComp) {
-		BlackboardComp->SetValueAsObject(PlayerKey, EnemyPawn);
-	}
+	AIPerceptionComponent = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("PerceptionComp"));
+
+	// Create Sight Sense
+	Sight = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("Sight Config"));
+	Sight->SightRadius = 2000.f;
+	Sight->LoseSightRadius = Sight->SightRadius + 500.f;
+	Sight->PeripheralVisionAngleDegrees = 90.0f;
+	Sight->DetectionByAffiliation.bDetectNeutrals = true;
+
+	// Register Sight Sense to AIPerceptionComponent;
+	AIPerceptionComponent->ConfigureSense(*Sight);
+	AIPerceptionComponent->SetDominantSense(Sight->GetSenseImplementation());
 }

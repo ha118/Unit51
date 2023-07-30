@@ -4,11 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h"
+#include "Perception/AIPerceptionComponent.h"
 #include "PatrolEnemyController.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class UNIT51_API APatrolEnemyController : public AAIController
 {
@@ -25,15 +23,27 @@ class UNIT51_API APatrolEnemyController : public AAIController
 	UPROPERTY(EditDefaultsOnly, Category = AI)
 	FName PlayerKey;
 
+	//AI Perception Component
+	UPROPERTY(VisibleAnywhere)
+	UAIPerceptionComponent* AIPerceptionComponent;
+
 	/*Patrol Points*/
 	TArray<AActor*> PatrolPoints;
 
+	UFUNCTION()
+	void OnPerception(AActor* Actor, FAIStimulus Stimulus);
+
+	class UAISenseConfig_Sight* Sight;
+
+	// Event when pawn is possessed
 	void OnPossess(APawn* EnemyPawn) override;
 
 public:
+	// Initializing first control point
 	int32 CurrentPatrolPoint = 0;
+	// Constructor
 	APatrolEnemyController();
-	void setPlayerCaught(APawn* EnemyPawn);
+	// Functions to return blackboard and patrol points
 	FORCEINLINE UBlackboardComponent* GetBlackBoardComponent() const { return BlackboardComp; }
 	FORCEINLINE TArray<AActor*> GetPatrolPoints() const { return PatrolPoints; }
 	

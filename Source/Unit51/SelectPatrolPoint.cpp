@@ -3,29 +3,28 @@
 
 #include "SelectPatrolPoint.h"
 #include "AIPatrolPoint.h"
-#include "PatrolEnemy.h"
 #include "PatrolEnemyController.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "Kismet/GameplayStatics.h"
-#include <random>
 
 EBTNodeResult::Type USelectPatrolPoint::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
+	APatrolEnemyController* AICon = Cast<APatrolEnemyController>(OwnerComp.GetAIOwner());
 
-		/*Get Blackboard*/
-	UBlackboardComponent* Blackboard = OwnerComp.GetBlackboardComponent();
-	AAIPatrolPoint* PatrolPoint = Cast<AAIPatrolPoint>(Blackboard->GetValueAsObject("LocationToGo"));
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAIPatrolPoint::StaticClass(), PatrolPoints);
-	TArray<AActor*> AvailablePatrolPoints = PatrolPoints;
-	int range = PatrolPoints.Num();
-	int num = rand() % range;
-	AAIPatrolPoint* CurrentPatrolPoint = Cast<AAIPatrolPoint>(PatrolPoints[num]);
+	if (AICon) {
+		UBlackboardComponent* Blackboard = AICon->GetBlackboardComponent();
+		AAIPatrolPoint* CurrPatrolPoint = Cast<AAIPatrolPoint>(Blackboard->GetValueAsObject("LocationToGo"));
+		TArray<AActor*> AvailablePatrolPoints = AICon->GetPatrolPoints();
+		AAIPatrolPoint* NextPatrolPoint = nullptr;
 
-
-
-	Blackboard->SetValueAsVector("LocationToGo", CurrentPatrolPoint->GetTargetLocation());
-
-	return EBTNodeResult::Succeeded;
+		if (AICon->CurrentPatrolPoint != AvailablePatrolPoints.Num() - 1) {
+			NextPatrolPoint = Cast<AAIPatrolPoint>(AvailablePatrolPoints[++AICon->CurrentPatrolPoint]);
+		}
+		else {
+			NextPatrolPoint = Cast<AAIPatrolPoint>(AvailablePatrolPoints[0]);
+			AICon->CurrentPatrolPoint = 0;
+		}
+		Blackboard->SetValueAsVector("LocationToGo", NextPatrolPoint->GetTargetLocation());
+		return EBTNodeResult::Succeeded;
+	}
+	return EBTNodeResult::Failed;
 }
-	//}
-	//return EBTNodeResult::Failed;

@@ -15,7 +15,5 @@ class UNIT51_API USelectPatrolPoint : public UBTTaskNode
 	GENERATED_BODY()
 
 		virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-
-	TArray<AActor*> PatrolPoints;
 	
 };
